@@ -7,14 +7,6 @@ object Client {
 
     private val client: OkHttpClient by lazy { OkHttpClient() }
 
-    fun head(url: String, headers: Headers = Headers.headersOf()): Response {
-        return Request.Builder()
-                .head()
-                .url(url)
-                .headers(headers)
-                .build().let { call(it) }
-    }
-
     fun get(url: String, headers: Headers = Headers.headersOf()): Response {
         return Request.Builder()
                 .get()
