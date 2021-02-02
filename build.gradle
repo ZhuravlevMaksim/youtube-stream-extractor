@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'java-library'
     id 'org.jetbrains.kotlin.jvm'
+    id 'maven'
 }
 
 group 'youtube-stream-extractor'
