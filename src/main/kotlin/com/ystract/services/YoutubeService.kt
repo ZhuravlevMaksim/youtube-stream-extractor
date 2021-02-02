@@ -4,6 +4,10 @@ import com.ystract.client.Client
 import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
 import okhttp3.Headers
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
+import java.util.concurrent.FutureTask
+import java.util.function.Supplier
 import kotlin.streams.toList
 
 val headers = Headers.headersOf(
@@ -46,9 +50,19 @@ class YoutubeService {
             }
             .toList()
             .filterNotNull()
-
     }
 
+    fun fromVideoAsync(videoUid: String): CompletableFuture<AudioStreamInfo>? {
+        return CompletableFuture.supplyAsync {
+            fromVideo(videoUid)
+        }
+    }
+
+    fun fromPlaylistAsync(playlistUid: String): CompletableFuture<List<AudioStreamInfo>>? {
+        return CompletableFuture.supplyAsync {
+            fromPlaylist(playlistUid)
+        }
+    }
 
     private fun getVideoUrlOrNull(item: Any?): String? {
         return try {
@@ -59,7 +73,6 @@ class YoutubeService {
             null
         }
     }
-
 }
 
 fun LinkedTreeMap<*, *>.getMap(key: String): LinkedTreeMap<*, *> {
