@@ -1,10 +1,12 @@
 package com.ystract.services
 
 import com.google.gson.internal.LinkedTreeMap
+import com.ystract.getList
+import com.ystract.getMap
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.Function
 import java.net.URLDecoder
-import java.util.HashMap
+import java.util.*
 
 data class Player(
     val uid: String,
@@ -33,7 +35,7 @@ data class Player(
 
     private fun getAudio(): StreamInfo {
         val audioStreamInfo = adaptiveFormats.firstOrNull { isMP3(it) } ?: adaptiveFormats.filter { isAudio(it) }
-            .maxBy { it["bitrate"] as Double }
+            .maxByOrNull { it["bitrate"] as Double }
 
         return extract(audioStreamInfo)
     }

@@ -1,8 +1,10 @@
 package com.ystract.services
 
-import com.ystract.client.Client
 import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
+import com.ystract.client.Client
+import com.ystract.getMap
+import com.ystract.headers
 import java.time.Duration
 
 const val RETRY = 5
