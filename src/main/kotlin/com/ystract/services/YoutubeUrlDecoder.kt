@@ -71,11 +71,15 @@ class YoutubeUrlDecoder {
             Pattern.compile("\\bc\\s*&&\\s*d\\.set\\([^,]+\\s*,\\s*(:encodeURIComponent\\s*\\()([a-zA-Z0-9$]+)\\(")
         )
 
-        fun cachedInstance(js: String): YoutubeUrlDecoder {
-            return if (cache.containsKey(js)) cache[js]!! else {
-                val youtubeUrlDecoder = YoutubeUrlDecoder()
-                cache[js] = youtubeUrlDecoder
-                return youtubeUrlDecoder
+        fun cachedInstance(js: String?): YoutubeUrlDecoder? {
+            if (js == null){
+                return null
+            }else{
+                return  if (cache.containsKey(js)) cache[js]!! else {
+                    val youtubeUrlDecoder = YoutubeUrlDecoder()
+                    cache[js] = youtubeUrlDecoder
+                    return youtubeUrlDecoder
+                }
             }
         }
     }

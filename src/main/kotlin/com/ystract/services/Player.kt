@@ -11,8 +11,7 @@ import java.util.*
 data class Player(
     val uid: String,
     val playerData: LinkedTreeMap<*, *>,
-    val js: String,
-    val decoder: YoutubeUrlDecoder? = YoutubeUrlDecoder.cachedInstance(js)
+    val js: String?
 ) {
 
     private val title by lazy { playerData.getMap("videoDetails")["title"] as String }
@@ -34,8 +33,8 @@ data class Player(
     }
 
     private fun getAudio(): StreamInfo {
-        val audioStreamInfo = adaptiveFormats.firstOrNull { isMP3(it) } ?: adaptiveFormats.filter { isAudio(it) }
-            .maxByOrNull { it["bitrate"] as Double }
+        val audioStreamInfo = adaptiveFormats.filter { isOpus(it) }
+            .minByOrNull { it["bitrate"] as Double }
 
         return extract(audioStreamInfo)
     }
@@ -44,10 +43,13 @@ data class Player(
         item as LinkedTreeMap<String, *>
         val formatCipher = item["cipher"] as String?
         val signatureCipher = item["signatureCipher"] as String?
-        val actualUrl = if (formatCipher == null && signatureCipher == null) {
+        
+        val actualUrl = if (js == null) {
+            null
+        } else if (formatCipher == null && signatureCipher == null) {
             item["url"] as String
         } else {
-            val loadDecryptionCode = this.decoder?.loadDecryptionCode(js)
+            val loadDecryptionCode = YoutubeUrlDecoder.cachedInstance(js)?.loadDecryptionCode(js)
             val cipherString: String = formatCipher ?: signatureCipher!!
             val cipher = compatParseMap(cipherString)
             cipher["url"] + "&" + cipher["sp"] + "=" + decryptSignature(cipher["s"]!!, loadDecryptionCode!!)
@@ -59,8 +61,7 @@ data class Player(
         )
     }
 
-    val isAudio: (LinkedTreeMap<String, *>) -> Boolean = { map -> (map["mimeType"] as String).contains("audio") }
-    val isMP3: (LinkedTreeMap<String, *>) -> Boolean = { map -> (map["mimeType"] as String).contains("mp3") }
+    val isOpus: (LinkedTreeMap<String, *>) -> Boolean = { map -> (map["mimeType"] as String).contains("opus") }
 }
 
 fun decryptSignature(encryptedSig: String, decryptionCode: String): String? {

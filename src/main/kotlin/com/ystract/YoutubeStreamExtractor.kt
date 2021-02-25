@@ -4,10 +4,10 @@ import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
 import com.ystract.client.Client
 import com.ystract.services.AudioStreamInfo
-import com.ystract.services.PlayerExtractor
+import com.ystract.services.Player
 import okhttp3.Headers
-import java.util.concurrent.CompletableFuture
 import kotlin.streams.toList
+
 
 val headers = Headers.headersOf(
     "X-YouTube-Client-Name", "1",
@@ -15,18 +15,31 @@ val headers = Headers.headersOf(
     "Accept-Language", "en-EN, en;q=0.9"
 )
 
-fun playlistUrl(uid: String) = "https://www.youtube.com/playlist?list=$uid"
-
 class YoutubeStreamExtractor {
 
     companion object {
-        public fun streamFromVideo(videoUid: String): AudioStreamInfo? {
-            return PlayerExtractor(videoUid).loadPlayer().getAudioStream()
+        public fun streamFromVideo(videoUid: String, unwrap: Boolean = false): AudioStreamInfo? {
+            val response = Client.get("https://www.youtube.com/watch?v=$videoUid&pbj=1", headers)
+            val responseList = Gson().fromJson(response.body?.string(), List::class.java)
+            val fromJson = responseList[2] as LinkedTreeMap<*, *>
+
+            if (fromJson.contains("playerResponse")) {
+                val playerResponse = fromJson.getMap("playerResponse")
+                val loadBaseJs = if (unwrap) JsUrlExtractor.getJsUrl(videoUid) else null
+                return Player(videoUid, playerResponse, loadBaseJs).getAudioStream()
+            } else if (fromJson.contains("player")) {
+                val player = fromJson.getMap("player")
+                val playerResponse = player.getMap("args")["player_response"] as String
+                val js = if (unwrap) player.getMap("assets")["js"] as String else null
+                return Player(videoUid, Gson().fromJson(playerResponse, LinkedTreeMap::class.java), js).getAudioStream()
+            }
+            return null
         }
 
-        public fun streamsFromPlaylist(playlistUid: String, peek: ((AudioStreamInfo) -> Unit)? = null): List<AudioStreamInfo> {
-            val response = Client.get("${playlistUrl(playlistUid)}&pbj=1", headers).body?.string()
-            val list = Gson().fromJson(response, List::class.java)
+        public fun streamsFromPlaylist(playlistUid: String, unwrap: Boolean = false): List<AudioStreamInfo> {
+            val response = Client.get("https://www.youtube.com/playlist?list=$playlistUid&pbj=1", headers)
+            val list = Gson().fromJson(response.body?.string(), List::class.java)
+
             return (list[1] as LinkedTreeMap<*, *>).getMap("response")
                 .getMap("contents")
                 .getMap("twoColumnBrowseResultsRenderer")
@@ -39,39 +52,43 @@ class YoutubeStreamExtractor {
                 .getList("contents").getMap(0)
                 .getMap("playlistVideoListRenderer")
                 .getList("contents")
-                .mapNotNull { getVideoUrlOrNull(it) }
-                .parallelStream()
-                .map { PlayerExtractor(it).loadPlayer().getAudioStream() }
-                .peek {
-                    if (peek != null && it != null) {
-                        peek(it)
+                .mapNotNull {
+                    try {
+                        val video = (it as LinkedTreeMap<*, *>).getMap("playlistVideoRenderer")
+                        if (video.containsKey("upcomingEventData")) {
+                            null
+                        } else {
+                            video["videoId"] as String
+                        }
+                    } catch (e: Exception) {
+                        null
                     }
                 }
+                .parallelStream()
+                .map { streamFromVideo(it, unwrap) }
                 .toList()
                 .filterNotNull()
         }
-
-        fun streamFromVideoAsync(videoUid: String): CompletableFuture<AudioStreamInfo>? {
-            return CompletableFuture.supplyAsync {
-                streamFromVideo(videoUid)
-            }
-        }
-
-        fun streamFromPlaylistAsync(playlistUid: String): CompletableFuture<List<AudioStreamInfo>>? {
-            return CompletableFuture.supplyAsync {
-                streamsFromPlaylist(playlistUid)
-            }
-        }
-
     }
 }
 
-fun getVideoUrlOrNull(item: Any?): String? {
-    return try {
-        val video = (item as LinkedTreeMap<*, *>).getMap("playlistVideoRenderer")
-        if (video.containsKey("upcomingEventData")) return null
-        return video["videoId"] as String
-    } catch (e: Exception) {
-        null
+object JsUrlExtractor {
+    @Volatile
+    private var jsUrl: String? = null
+    private val findPlayerJsUrl = "\"([/|\\w.]+base\\.js)\"".toRegex()
+
+    @Synchronized
+    fun getJsUrl(videoUid: String): String {
+        return if (jsUrl == null) {
+            return load(videoUid).also {
+                jsUrl = it
+            }
+        } else jsUrl!!
     }
+
+    private fun load(videoUid: String): String {
+        return playerJs(Client.get("https://www.youtube.com/embed/${videoUid}", headers).body!!.string())
+    }
+
+    private fun playerJs(body: String) = findPlayerJsUrl.find(body)!!.destructured.component1()
 }

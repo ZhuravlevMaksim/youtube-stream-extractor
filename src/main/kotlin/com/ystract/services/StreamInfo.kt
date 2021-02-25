@@ -1,7 +1,7 @@
 package com.ystract.services
 
 data class StreamInfo(
-    var url: String,
+    var url: String?,
     val mimeType: String,
     val bitrate: Double?
 )
