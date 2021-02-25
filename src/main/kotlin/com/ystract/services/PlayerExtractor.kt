@@ -51,7 +51,7 @@ class PlayerExtractor(private val videoUid: String) {
 
 object JsUrlExtractor {
     @Volatile private var jsUrl: String? = null
-    private val findPlayerJsUrl = "<script src=\"(.+base.js)\"".toRegex()
+    private val findPlayerJsUrl = "\"([/|\\w.]+base\\.js)\"".toRegex()
 
     @Synchronized fun getJsUrl(videoUid: String): String {
         return if (jsUrl == null) {

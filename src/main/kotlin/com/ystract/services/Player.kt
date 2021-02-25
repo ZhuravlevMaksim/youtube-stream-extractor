@@ -55,8 +55,7 @@ data class Player(
         return StreamInfo(
             actualUrl,
             item["mimeType"] as String,
-            item["bitrate"] as Double,
-            item["contentLength"] as String
+            item["bitrate"] as Double
         )
     }
 
